@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import tempfile
 from pathlib import Path
 
 from platform_api.evidence import EvidenceError, MAX_BOOK_BYTES, _read_book
@@ -57,14 +58,27 @@ def import_markdown(root: Path, course: str, content: str) -> dict:
     if not 32 <= len(data) <= MAX_BOOK_BYTES:
         raise BookError("Textbook must have 32–2,000,000 bytes")
     path = _target(root, course)
-    # 'x' enforces no overwrite even with competing requests; never truncate
-    # the primary book or reset runtime/mastery on onboarding.
+    # Stage a complete, fsynced file before publishing it. Opening book.md
+    # with 'x' directly would expose a partial textbook if writing fails.
+    # A hard link is an atomic, no-replace publication on the same filesystem:
+    # two competing imports cannot overwrite each other or existing course data.
+    staged: Path | None = None
     try:
-        with path.open("x", encoding="utf-8", newline="\n") as file:
-            file.write(content)
+        fd, name = tempfile.mkstemp(prefix=".book-", suffix=".tmp", dir=path.parent)
+        staged = Path(name)
+        with os.fdopen(fd, "wb") as file:
+            file.write(data)
             file.flush()
             os.fsync(file.fileno())
+        os.link(staged, path)
     except FileExistsError as exc:
         raise BookError("Course already has a textbook; overwrite is forbidden") from exc
+    except OSError as exc:
+        # On filesystems without hard-link support, fail closed rather than
+        # falling back to a non-atomic rename or direct write.
+        raise BookError("Textbook import failed before publication; retry is safe") from exc
+    finally:
+        if staged is not None:
+            staged.unlink(missing_ok=True)
     return {"course": course, "created": True, "sha256": hashlib.sha256(data).hexdigest(),
             "bytes": len(data), "ready_for_formal_lesson": False}
