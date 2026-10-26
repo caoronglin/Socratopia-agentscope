@@ -22,3 +22,8 @@
 - Reconcile old v4 host-specific prompt/skill documents into framework-agnostic teaching resources; remove obsolete host adapters after migrating their useful learning content.
 - Add real-provider E2E (normal classroom + two independent tutors) before stable.
 - Evaluate opt-in AgentScope model router and TeamPipeline against bounded turn-by-turn tutoring; do not introduce uncontrolled agent loops or duplicate memory stores.
+
+## Textbook onboarding safety (2026-10-26 candidate)
+- `POST /api/courses/{course}/book` is create-only. It stages a complete UTF-8 Markdown file in the same course directory, flushes and fsyncs it, then publishes `book.md` using an atomic no-replace hard link. A failed staging write cannot expose a partial authoritative textbook; concurrent requests cannot replace an existing book.
+- If the filesystem does not support same-directory hard links, the import fails closed instead of using an unsafe rename/direct-write fallback. A retry is safe when `book.md` is absent. Unexpected process termination can leave a hidden `.book-*.tmp` staging file; do not mistake it for the authoritative book or delete course data during recovery.
+- Validation: `python -m pytest -q tests/test_books_atomic.py`, plus `python scripts/check.py --strict`, Python 3.15 API tests, browser E2E and native ZIP smoke in CI. No migration, overwrite, automatic lesson readiness, or change to `v4.3.2` is intended.
