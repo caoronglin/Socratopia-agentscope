@@ -29,6 +29,6 @@
     "typescript": "^5.9.0",
     "vite": "^7.0.0",
     "@playwright/test": "^1.55.0",
-    "@ant-design/cli": "6.6.6"
+    "@ant-design/cli": "6.6.7"
   }
 }
