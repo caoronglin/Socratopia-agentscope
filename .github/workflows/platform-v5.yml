@@ -43,7 +43,7 @@ jobs:
       - name: Compile app and existing scripts
         run: python -m compileall -q platform_api scripts tests
       - name: Run API tests
-        run: python -m pytest -q tests/test_platform_v5.py tests/test_platform_v5_exercises.py tests/test_platform_v5_flashcards.py tests/test_platform_v5_ontology.py tests/test_platform_v5_chat_history.py tests/test_platform_v5_prep_web.py tests/test_platform_v5_prompt_contract.py tests/test_platform_v5_prep_editor.py tests/test_agentscope_runtime.py tests/test_course_harness.py tests/test_course_tools.py tests/test_snapshot_sync.py
+        run: python -m pytest -q tests/test_platform_v5.py tests/test_platform_v5_exercises.py tests/test_platform_v5_flashcards.py tests/test_platform_v5_ontology.py tests/test_platform_v5_chat_history.py tests/test_platform_v5_prep_web.py tests/test_platform_v5_prompt_contract.py tests/test_platform_v5_prep_editor.py tests/test_agentscope_runtime.py tests/test_course_harness.py tests/test_course_tools.py tests/test_snapshot_sync.py tests/test_books_atomic.py
       - name: Run original smoke
         run: python scripts/check.py --strict
 
