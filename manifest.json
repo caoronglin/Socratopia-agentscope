@@ -193,6 +193,7 @@
     "tests/test_agentscope_prompt_contracts.py",
     "tests/test_agentscope_runtime.py",
     "tests/test_architecture.py",
+    "tests/test_books_atomic.py",
     "tests/test_budget.py",
     "tests/test_chapter_prep.py",
     "tests/test_context_pack.py",
