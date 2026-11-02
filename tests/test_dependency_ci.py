@@ -6,7 +6,29 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = (".github/workflows/ci.yml", ".github/workflows/release.yml")
+# Every shipping workflow must keep external actions pinned to immutable SHAs.
+# Pin values intentionally live in workflow YAML, not in this test: Dependabot
+# must be able to rotate a valid 40-character SHA without a false CI failure.
+REQUIRED_ACTION_FAMILIES = {
+    ".github/workflows/ci.yml": {"actions/checkout", "actions/setup-python"},
+    ".github/workflows/release.yml": {
+        "actions/checkout", "actions/setup-python",
+        "actions/upload-artifact", "actions/download-artifact",
+    },
+    ".github/workflows/platform-v5.yml": {
+        "actions/checkout", "actions/setup-python", "actions/setup-node",
+    },
+    ".github/workflows/web-v5-bundle.yml": {
+        "actions/checkout", "actions/setup-python", "actions/setup-node",
+        "actions/download-artifact",
+    },
+}
+FILES = tuple(REQUIRED_ACTION_FAMILIES)
+ACTION_REF_PATTERN = r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+@[0-9a-f]{40}$"
+
+
+def _action_refs(workflow: str) -> list[str]:
+    return re.findall(r"^\\s*-\\s*uses:\\s*([^\\s#]+)", workflow, re.MULTILINE)
 
 
 class DependencyAndStandaloneContracts(unittest.TestCase):
@@ -14,22 +36,33 @@ class DependencyAndStandaloneContracts(unittest.TestCase):
         for name in FILES:
             with self.subTest(workflow=name):
                 content = (ROOT / name).read_text(encoding="utf-8")
-                actions = re.findall(r"^\s*- uses:\s*([^\s#]+)", content, re.MULTILINE)
+                actions = _action_refs(content)
                 self.assertTrue(actions)
                 for action in actions:
-                    self.assertRegex(action, r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+@[0-9a-f]{40}$")
+                    self.assertRegex(action, ACTION_REF_PATTERN)
                 self.assertNotIn("pull_request_target:", content)
 
-    def test_updated_official_action_families_present(self):
-        ci = (ROOT / FILES[0]).read_text(encoding="utf-8")
-        release = (ROOT / FILES[1]).read_text(encoding="utf-8")
-        for action in ("3d3c42e5aac5ba805825da76410c181273ba90b1",
-                       "5fda3b95a4ea91299a34e894583c3862153e4b97"):
-            self.assertIn(action, ci)
-            self.assertIn(action, release)
-        for action in ("cf430e030ddbb5b0abf93d22962f4752f3646cd9",
-                       "9000827ccba6bdab643e8b6fd33ac0654aef8333"):
-            self.assertIn(action, release)
+    def test_required_official_action_families_present(self):
+        for name, required in REQUIRED_ACTION_FAMILIES.items():
+            with self.subTest(workflow=name):
+                content = (ROOT / name).read_text(encoding="utf-8")
+                families = {ref.split("@", 1)[0] for ref in _action_refs(content)}
+                for family in required:
+                    self.assertIn(family, families)
+
+    def test_action_sha_rotation_keeps_pin_validation_strict(self):
+        # A routine Dependabot SHA rotation must not fail this contract.
+        for digest in ("a" * 40, "b" * 40):
+            self.assertRegex("actions/setup-python@" + digest, ACTION_REF_PATTERN)
+        # But mutable tags, abbreviated SHAs and missing pins must still fail.
+        for ref in (
+            "actions/setup-python@v7",
+            "actions/setup-python@" + "a" * 39,
+            "actions/setup-python",
+            "actions/setup-python@" + "g" * 40,
+        ):
+            with self.subTest(ref=ref):
+                self.assertNotRegex(ref, ACTION_REF_PATTERN)
 
     def test_dependencies_explicitly_pinned_and_dependabot_configured(self):
         self.assertEqual((ROOT / "requirements-build.txt").read_text(encoding="utf-8").strip(),
