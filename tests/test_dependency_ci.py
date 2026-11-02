@@ -28,7 +28,7 @@ ACTION_REF_PATTERN = r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+@[0-9a-f]{40}$"
 
 
 def _action_refs(workflow: str) -> list[str]:
-    return re.findall(r"^\s*-\s*uses:\s*([^\s#]+)", workflow, re.MULTILINE)
+    return re.findall(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", workflow, re.MULTILINE)
 
 
 class DependencyAndStandaloneContracts(unittest.TestCase):
@@ -49,6 +49,17 @@ class DependencyAndStandaloneContracts(unittest.TestCase):
                 families = {ref.split("@", 1)[0] for ref in _action_refs(content)}
                 for family in required:
                     self.assertIn(family, families)
+
+    def test_action_parser_covers_named_and_unnamed_steps(self):
+        sha = "a" * 40
+        workflow = (
+            f"      - uses: actions/checkout@{sha}\\n"
+            "      - name: Upload bundle\\n"
+            f"        uses: actions/upload-artifact@{sha}\\n"
+        )
+        self.assertEqual(_action_refs(workflow), [
+            f"actions/checkout@{sha}", f"actions/upload-artifact@{sha}",
+        ])
 
     def test_action_sha_rotation_keeps_pin_validation_strict(self):
         # A routine Dependabot SHA rotation must not fail this contract.
