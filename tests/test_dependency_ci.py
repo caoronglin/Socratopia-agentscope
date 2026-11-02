@@ -52,11 +52,11 @@ class DependencyAndStandaloneContracts(unittest.TestCase):
 
     def test_action_parser_covers_named_and_unnamed_steps(self):
         sha = "a" * 40
-        workflow = (
-            f"      - uses: actions/checkout@{sha}\\n"
-            "      - name: Upload bundle\\n"
-            f"        uses: actions/upload-artifact@{sha}\\n"
-        )
+        workflow = chr(10).join((
+            f"      - uses: actions/checkout@{sha}",
+            "      - name: Upload bundle",
+            f"        uses: actions/upload-artifact@{sha}",
+        ))
         self.assertEqual(_action_refs(workflow), [
             f"actions/checkout@{sha}", f"actions/upload-artifact@{sha}",
         ])
