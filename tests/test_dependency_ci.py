@@ -28,7 +28,7 @@ ACTION_REF_PATTERN = r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+@[0-9a-f]{40}$"
 
 
 def _action_refs(workflow: str) -> list[str]:
-    return re.findall(r"^\\s*-\\s*uses:\\s*([^\\s#]+)", workflow, re.MULTILINE)
+    return re.findall(r"^\s*-\s*uses:\s*([^\s#]+)", workflow, re.MULTILINE)
 
 
 class DependencyAndStandaloneContracts(unittest.TestCase):
