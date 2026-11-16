@@ -1,5 +1,7 @@
 """AgentScope-only v5 runtime and distribution contracts."""
 from pathlib import Path
+import re
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -26,8 +28,14 @@ def test_package_includes_only_server_and_frontend():
 def test_agent_scope_version_and_course_isolation():
     config = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     runtime = (ROOT / "platform_api/agentscope_runtime.py").read_text(encoding="utf-8")
-    assert "agentscope==2.0.10" in config
-    assert 'sdk_version": "2.0.10"' in runtime
+    dependencies = tomllib.loads(config)["project"]["dependencies"]
+    pins = [value for value in dependencies if value.startswith("agentscope")]
+    assert len(pins) == 1
+    match = re.fullmatch(r"agentscope==([0-9]+(?:\.[0-9]+){2,3})", pins[0])
+    assert match is not None, "AgentScope must remain exactly version-pinned"
+    assert f'"sdk_version": "{match.group(1)}"' in runtime, (
+        "The runtime's reported SDK version must match the installed dependency"
+    )
     assert "if scope in _active:" in runtime
     assert "MAX_IN_FLIGHT = 4" in runtime
 

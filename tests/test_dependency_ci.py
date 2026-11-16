@@ -9,7 +9,24 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = (".github/workflows/ci.yml", ".github/workflows/release.yml")
 
 
+def _single_exact_pin(content: str, package: str) -> bool:
+    """Require one exact PEP 440 numeric pin, without extra requirements."""
+    return re.fullmatch(
+        rf"{re.escape(package)}==[0-9]+(?:\.[0-9]+){{1,3}}(?:\.post[0-9]+)?",
+        content.strip(),
+    ) is not None
+
+
 class DependencyAndStandaloneContracts(unittest.TestCase):
+    def test_pin_validation_accepts_rotations_but_rejects_ranges(self):
+        for version in ("9.1.1", "9.2.0", "10.0.0"):
+            with self.subTest(version=version):
+                self.assertTrue(_single_exact_pin(f"pytest=={version}\n", "pytest"))
+        for invalid in ("pytest>=9", "pytest==9.*", "pytest==9.2.0\\nother==1.0",
+                        "pytest==9.2.0 # comment", "pytest==not-a-version", ""):
+            with self.subTest(invalid=invalid):
+                self.assertFalse(_single_exact_pin(invalid, "pytest"))
+
     def test_all_external_actions_use_immutable_commit_sha(self):
         for name in FILES:
             with self.subTest(workflow=name):
@@ -32,10 +49,10 @@ class DependencyAndStandaloneContracts(unittest.TestCase):
             self.assertIn(action, release)
 
     def test_dependencies_explicitly_pinned_and_dependabot_configured(self):
-        self.assertEqual((ROOT / "requirements-build.txt").read_text(encoding="utf-8").strip(),
-                         "pyinstaller==6.22.3")
-        self.assertEqual((ROOT / "requirements-ci.txt").read_text(encoding="utf-8").strip(),
-                         "pytest==9.1.1")
+        self.assertTrue(_single_exact_pin(
+            (ROOT / "requirements-build.txt").read_text(encoding="utf-8"), "pyinstaller"))
+        self.assertTrue(_single_exact_pin(
+            (ROOT / "requirements-ci.txt").read_text(encoding="utf-8"), "pytest"))
         config = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
         for term in ("package-ecosystem: github-actions", "package-ecosystem: pip",
                      "interval: weekly"):
