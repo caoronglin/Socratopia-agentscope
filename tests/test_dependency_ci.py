@@ -12,7 +12,7 @@ FILES = (".github/workflows/ci.yml", ".github/workflows/release.yml")
 def _single_exact_pin(content: str, package: str) -> bool:
     """Require one exact PEP 440 numeric pin, without extra requirements."""
     return re.fullmatch(
-        rf"{re.escape(package)}==[0-9]+(?:\\.[0-9]+){{1,3}}(?:\\.post[0-9]+)?",
+        rf"{re.escape(package)}==[0-9]+(?:\.[0-9]+){{1,3}}(?:\.post[0-9]+)?",
         content.strip(),
     ) is not None
 
@@ -21,7 +21,7 @@ class DependencyAndStandaloneContracts(unittest.TestCase):
     def test_pin_validation_accepts_rotations_but_rejects_ranges(self):
         for version in ("9.1.1", "9.2.0", "10.0.0"):
             with self.subTest(version=version):
-                self.assertTrue(_single_exact_pin(f"pytest=={version}\\n", "pytest"))
+                self.assertTrue(_single_exact_pin(f"pytest=={version}\n", "pytest"))
         for invalid in ("pytest>=9", "pytest==9.*", "pytest==9.2.0\\nother==1.0",
                         "pytest==9.2.0 # comment", "pytest==not-a-version", ""):
             with self.subTest(invalid=invalid):
