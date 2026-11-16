@@ -31,7 +31,7 @@ def test_agent_scope_version_and_course_isolation():
     dependencies = tomllib.loads(config)["project"]["dependencies"]
     pins = [value for value in dependencies if value.startswith("agentscope")]
     assert len(pins) == 1
-    match = re.fullmatch(r"agentscope==([0-9]+(?:\\.[0-9]+){2,3})", pins[0])
+    match = re.fullmatch(r"agentscope==([0-9]+(?:\.[0-9]+){2,3})", pins[0])
     assert match is not None, "AgentScope must remain exactly version-pinned"
     assert f'"sdk_version": "{match.group(1)}"' in runtime, (
         "The runtime's reported SDK version must match the installed dependency"
