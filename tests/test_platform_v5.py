@@ -287,6 +287,102 @@ def test_course_lifecycle_and_grounded_graph(client, monkeypatch):
     assert client.post("/api/courses/课程图谱/lifecycle", headers=auth(), json={"archived": False}).json()["archived"] is False
 
 
+
+def test_archived_courses_block_remaining_write_endpoints(client: TestClient) -> None:
+    root = Path(os.environ["SOCRATOPIA_ROOT"])
+
+    def create_course(name: str) -> None:
+        response = client.post("/api/courses", headers=auth(), json={"name": name})
+        assert response.status_code == 200, response.text
+
+    def archive_course(name: str, archived: bool) -> None:
+        response = client.post(
+            f"/api/courses/{name}/lifecycle",
+            headers=auth(),
+            json={"archived": archived},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["archived"] is archived
+
+    # Agent feature flags are course state, not an exception to archive mode.
+    create_course("封存功能")
+    archive_course("封存功能", True)
+    feature_file = root / "DATA" / "封存功能" / "runtime" / "agent_features.json"
+    blocked_feature = client.post(
+        "/api/courses/封存功能/agent/features",
+        headers=auth(),
+        json={"feature": "graph", "enabled": True},
+    )
+    assert blocked_feature.status_code == 409
+    assert not feature_file.exists()
+    archive_course("封存功能", False)
+    enabled_feature = client.post(
+        "/api/courses/封存功能/agent/features",
+        headers=auth(),
+        json={"feature": "graph", "enabled": True},
+    )
+    assert enabled_feature.status_code == 200
+    assert enabled_feature.json()["features"]["graph"] is True
+
+    # A textbook import must not create a new authoritative book while archived.
+    create_course("封存教材")
+    archive_course("封存教材", True)
+    book_content = (
+        "# 植物遗传学\\n"
+        "遗传信息通过染色体从亲代传递给子代，减数分裂和受精参与有性生殖。\\n"
+    )
+    book_file = root / "TEXTBOOK" / "封存教材" / "book.md"
+    blocked_book = client.post(
+        "/api/courses/封存教材/book",
+        headers=auth(),
+        json={"content": book_content},
+    )
+    assert blocked_book.status_code == 409
+    assert not book_file.exists()
+    archive_course("封存教材", False)
+    imported_book = client.post(
+        "/api/courses/封存教材/book",
+        headers=auth(),
+        json={"content": book_content},
+    )
+    assert imported_book.status_code == 200
+    assert book_file.read_text(encoding="utf-8") == book_content
+
+    # PREP preview is read-only; applying the generated draft is a mutation.
+    create_course("封存备课")
+    add_book(
+        "封存备课",
+        "# 第一章 DNA复制\\n## 复制起始\\nDNA复制需要模板链和DNA聚合酶。\\n",
+    )
+    archive_course("封存备课", True)
+    preview = client.post(
+        "/api/courses/封存备课/prep/chapter/plan",
+        headers=auth(),
+        json={"chapter": "第一章 DNA复制", "apply": False},
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["dry_run"] is True
+    prep_file = Path(preview.json()["path"])
+    assert not prep_file.exists()
+
+    blocked_prep = client.post(
+        "/api/courses/封存备课/prep/chapter/plan",
+        headers=auth(),
+        json={"chapter": "第一章 DNA复制", "apply": True},
+    )
+    assert blocked_prep.status_code == 409
+    assert not prep_file.exists()
+
+    archive_course("封存备课", False)
+    applied_prep = client.post(
+        "/api/courses/封存备课/prep/chapter/plan",
+        headers=auth(),
+        json={"chapter": "第一章 DNA复制", "apply": True},
+    )
+    assert applied_prep.status_code == 200, applied_prep.text
+    assert prep_file.is_file()
+
+
 def test_course_study_task_idempotency(client):
     assert client.post("/api/courses", headers=auth(), json={"name":"任务课"}).status_code == 200
     payload = {"title": "复习显性与隐性遗传", "kind": "review", "request_id": "task-repeat-12345678"}
