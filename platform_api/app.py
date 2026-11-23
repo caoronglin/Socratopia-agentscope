@@ -220,7 +220,7 @@ def course_agent_status(course: str, _: Authenticated) -> dict:
 @api.post("/api/courses/{course}/agent/features")
 def course_agent_features(course: str, payload: AgentFeatureRequest, _: Authenticated) -> dict:
     try:
-        return course_agents.configure(root_dir(), existing_course(course),
+        return course_agents.configure(root_dir(), active_course(course),
                                        payload.feature, payload.enabled)
     except (ValueError, OSError) as exc:
         raise HTTPException(409, str(exc)) from exc
@@ -457,7 +457,8 @@ def course_prep_save_sections(course: str, lesson_id: str, payload: StructuredPr
 
 @api.post("/api/courses/{course}/prep/chapter/plan")
 def course_prep_chapter(course: str, payload: ChapterPrepRequest, _: Authenticated) -> dict:
-    name = existing_course(course)
+    # Archived courses may be inspected with a dry-run preview, but never mutated.
+    name = active_course(course) if payload.apply else existing_course(course)
     try:
         result = chapter_prep.plan_chapter(
             root_dir(), name, payload.chapter,
@@ -480,7 +481,7 @@ def book_info(course: str, _: Authenticated) -> dict:
 
 @api.post("/api/courses/{course}/book")
 def import_course_book(course: str, payload: BookImport, _: Authenticated) -> dict:
-    name = existing_course(course)
+    name = active_course(course)
     try:
         return books.import_markdown(root_dir(), name, payload.content)
     except (books.BookError, ValueError) as exc:
