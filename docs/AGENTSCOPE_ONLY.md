@@ -22,3 +22,9 @@
 - Reconcile old v4 host-specific prompt/skill documents into framework-agnostic teaching resources; remove obsolete host adapters after migrating their useful learning content.
 - Add real-provider E2E (normal classroom + two independent tutors) before stable.
 - Evaluate opt-in AgentScope model router and TeamPipeline against bounded turn-by-turn tutoring; do not introduce uncontrolled agent loops or duplicate memory stores.
+
+## Archived-course write boundary · 2026-11-23
+
+Archiving a course makes its course-owned state read-only until it is restored. The API enforces this at the route boundary with `active_course` before changing agent feature flags, importing the authoritative textbook, or applying a generated chapter PREP. A chapter PREP dry-run remains available because it only returns a preview; `apply=true` is rejected with HTTP 409 while archived. Read-only status/evidence views remain available, and the lifecycle endpoint is the explicit restore path. Snapshot export remains a separate explicit-consent backup action and does not mutate local course files.
+
+Regression coverage verifies that all three blocked writes leave their target files unchanged/absent, previews remain non-mutating, and the same operations work again after explicit restoration. The test uses temporary fixture courses only; it does not access or modify user course data.
