@@ -328,8 +328,8 @@ def test_archived_courses_block_remaining_write_endpoints(client: TestClient) ->
     create_course("封存教材")
     archive_course("封存教材", True)
     book_content = (
-        "# 植物遗传学\\n"
-        "遗传信息通过染色体从亲代传递给子代，减数分裂和受精参与有性生殖。\\n"
+        "# 植物遗传学\n"
+        "遗传信息通过染色体从亲代传递给子代，减数分裂和受精参与有性生殖。\n"
     )
     book_file = root / "TEXTBOOK" / "封存教材" / "book.md"
     blocked_book = client.post(
@@ -352,7 +352,7 @@ def test_archived_courses_block_remaining_write_endpoints(client: TestClient) ->
     create_course("封存备课")
     add_book(
         "封存备课",
-        "# 第一章 DNA复制\\n## 复制起始\\nDNA复制需要模板链和DNA聚合酶。\\n",
+        "# 第一章 DNA复制\n## 复制起始\nDNA复制需要模板链和DNA聚合酶。\n",
     )
     archive_course("封存备课", True)
     preview = client.post(
