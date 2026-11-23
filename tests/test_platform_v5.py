@@ -287,7 +287,6 @@ def test_course_lifecycle_and_grounded_graph(client, monkeypatch):
     assert client.post("/api/courses/课程图谱/lifecycle", headers=auth(), json={"archived": False}).json()["archived"] is False
 
 
-
 def test_archived_courses_block_remaining_write_endpoints(client: TestClient) -> None:
     root = Path(os.environ["SOCRATOPIA_ROOT"])
 
